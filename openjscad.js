@@ -1400,6 +1400,10 @@ OpenJsCad.Processor.prototype = {
     else if(format == "x3d") {
       blob = this.currentObject.fixTJunctions().toX3D();
     }
+    else if(format == "vrml") {
+      blob = this.currentObject.fixTJunctions().toVRML();
+      blob = new Blob([blob],{ type: this.formatInfo(format).mimetype });
+    }
     else if(format == "dxf") {
       blob = this.currentObject.toDxf();
     }
@@ -1411,7 +1415,7 @@ OpenJsCad.Processor.prototype = {
   
   supportedFormatsForCurrentObject: function() {
     if (this.currentObject instanceof CSG) {
-      return ["stlb", "stla", "amf", "x3d"];
+      return ["stlb", "stla", "amf", "x3d", "vrml"];
     } else if (this.currentObject instanceof CAG) {
       return ["dxf"];
     } else {
@@ -1440,6 +1444,11 @@ OpenJsCad.Processor.prototype = {
         displayName: "X3D",
         extension: "x3d",
         mimetype: "model/x3d+xml",
+        },
+      vrml: {
+        displayName: "VRML",
+        extension: "wrl",
+        mimetype: "model/vrml",
         },
       dxf: {
         displayName: "DXF",
