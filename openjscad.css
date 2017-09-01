@@ -73,6 +73,7 @@ canvas {
   -moz-border-radius: 5px;    /* css mess */
   -webkit-border-radius: 5px;
 
+  margin: 5px 0px 5px 0px;
   padding: 10px;
   background: #fff; /* rgba(255,255,255,0.7); */
   opacity: 0.8;
@@ -81,7 +82,13 @@ canvas {
   
   /* cursor: move;     moveable now */
 }
+#parametersdiv th {
+  text-align: left;
+  font-size: 1em;
+  font-weight: bold;
+}
 #parametersdiv td {
+  text-align: right;
   font-size: 0.8em;
 }
 #parametersdiv input, #parametersdiv textarea, #parametersdiv select {
@@ -90,22 +97,39 @@ canvas {
   border: none;
 }
 
-#parametersdiv .parameterheader {
-   font-weight: bold;
-   font-size: 0.9em;
-}
-
-#parametersdiv .caption {
-   text-align: right;
-}
-
 #instantUpdate {
    margin-left: 1em;
 }
-
 #instantUpdateLabel {
    font-size: 0.9em;
 }
 
-.statusdiv {
+#statusdiv {
 }
+#statusspan {
+   margin-right: 2em;
+}
+#statusbuttons {
+   float: right;
+}
+
+#selectdiv {
+  position: fixed;
+  top: 0.5em;
+  right: 0.5em;
+
+  z-index: 4;
+  background: transparent;
+  opacity: 0.8;
+  border: none;
+  display: inline;
+}
+#startRange {
+  margin: 2px;
+  padding: 2px;
+}
+#endRange {
+  margin: 2px;
+  padding: 2px;
+}
+

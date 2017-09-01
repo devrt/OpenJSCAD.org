@@ -1,0 +1,68 @@
+{
+  "name": "@jscad/openjscad",
+  "version": "1.0.2",
+  "description": "",
+  "repository": "https://github.com/Spiritdude/OpenJSCAD.org",
+  "main": "src/module.js",
+  "bin": {
+    "openjscad": "src/cli/cli.js"
+  },
+  "scripts": {
+    "test": "ava './src/**/*.test.js' --verbose --timeout 10000",
+    "build-web": "browserify src/ui/index.js -o dist/index.js -t [babelify browserify minifyify]",
+    "build-min": "browserify src/ui/min.js -o dist/min.js -t [babelify browserify minifyify]",
+    "build-opt": "browserify src/ui/opt.js -o dist/opt.js -t [babelify browserify minifyify]",
+    "build-all": "npm run build-web && npm run build-min && npm run build-opt",
+    "start-dev": "budo src/ui/index.js:dist/index.js --port=8080 --live -- -b -t babelify",
+    "preversion": "npm test",
+    "version": "npm run build-all && git add -A ",
+    "postversion": "git push origin master && git push origin master --tags",
+    "release-patch": "git checkout master; npm version patch",
+    "release-minor": "git checkout master; npm version minor",
+    "release-major": "git checkout master; npm version major"
+  },
+  "contributors": [
+    {
+      "name": "Rene K. Mueller",
+      "url": "http://renekmueller.com"
+    },
+    {
+      "name": "z3dev",
+      "url": "http://www.z3d.jp"
+    },
+    {
+      "name": "Mark 'kaosat-dev' Moissette",
+      "url": "http://kaosat.net"
+    }
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@jscad/csg": "0.2.4",
+    "@jscad/io": "0.2.0",
+    "@jscad/scad-api": "0.3.4",
+    "@jscad/openscad-openjscad-translator": "0.0.10",
+    "astring": "^1.0.2",
+    "esprima": "^3.1.3",
+    "estraverse": "^4.2.0",
+    "brace": "0.10.0",
+    "most-gestures": "^0.2.0",
+    "webworkify": "^1.4.0"
+  },
+  "devDependencies": {
+    "ava": "^0.19.1",
+    "babel-cli": "^6.6.5",
+    "babel-core": "^6.2.1",
+    "babel-preset-es2015": "^6.1.18",
+    "babelify": "^7.2.0",
+    "browserify": "14.3.0",
+    "browserify-shim": "^3.8.12",
+    "budo": "10.0.3",
+    "minifyify": "^7.3.3"
+  },
+  "browserify": {
+    "transform": [
+      "browserify-shim"
+    ]
+  },
+  "browserify-shim": {}
+}
