@@ -1,5 +1,11 @@
-FROM nginx:alpine
+FROM alpine
 
 MAINTAINER Yosuke Matsusaka <yosuke.matsusaka@gmail.com>
 
-ADD . /usr/share/nginx/html
+RUN apk add --no-cache tini lighttpd perl perl-cgi curl
+
+ADD . /app
+
+ENTRYPOINT ["/sbin/tini", "--"]
+
+CMD lighttpd -D -f /app/lighttpd.conf 2>&1
