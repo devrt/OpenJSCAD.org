@@ -10,6 +10,7 @@ as well CLI (command-line interface) for server-side computations with NodeJS.
 [![Dependency Status](https://david-dm.org/jscad/OpenJSCAD.org.svg)](https://david-dm.org/jscad/OpenJSCAD.org)
 [![devDependency Status](https://david-dm.org/jscad/OpenJSCAD.org/dev-status.svg)](https://david-dm.org/jscad/OpenJSCAD.org#info=devDependencies)
 [![stable](http://badges.github.io/stability-badges/dist/stable.svg)](http://github.com/badges/stability-badges)
+[![](https://images.microbadger.com/badges/image/devrt/openjscad.svg)](https://microbadger.com/images/devrt/openjscad)
 
 ## Table of Contents
 
