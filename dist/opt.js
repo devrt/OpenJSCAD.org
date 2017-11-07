@@ -44204,7 +44204,7 @@ exports.XMLReader = XMLReader;
 },{}],213:[function(require,module,exports){
 module.exports={
   "name": "@jscad/openjscad",
-  "version": "1.0.3",
+  "version": "1.2.0",
   "description": "",
   "repository": "https://github.com/Spiritdude/OpenJSCAD.org",
   "main": "src/module.js",
@@ -44212,7 +44212,7 @@ module.exports={
     "openjscad": "src/cli/cli.js"
   },
   "scripts": {
-    "test": "ava './src/**/*.test.js' --verbose --timeout 10000",
+    "test": "ava './src/cli/*.test.js' --verbose --timeout 10000",
     "build-web": "browserify src/ui/index.js -o dist/index.js -t [babelify browserify minifyify]",
     "build-min": "browserify src/ui/min.js -o dist/min.js -t [babelify browserify minifyify]",
     "build-opt": "browserify src/ui/opt.js -o dist/opt.js -t [babelify browserify minifyify]",
@@ -44221,9 +44221,9 @@ module.exports={
     "preversion": "npm test",
     "version": "npm run build-all && git add -A ",
     "postversion": "git push origin master && git push origin master --tags",
-    "release-patch": "git checkout master; npm version patch",
-    "release-minor": "git checkout master; npm version minor",
-    "release-major": "git checkout master; npm version major",
+    "release-patch": "git checkout master && git pull origin master && npm version patch",
+    "release-minor": "git checkout master && git pull origin master && npm version minor",
+    "release-major": "git checkout master && git pull origin master && npm version major",
     "postinstall": "node -e \"console.log('\\u001b[35m\\u001b[1mLove OpenJSCAD? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/openjscad/donate\\u001b[0m')\""
   },
   "contributors": [
@@ -44242,20 +44242,20 @@ module.exports={
   ],
   "license": "MIT",
   "dependencies": {
-    "@jscad/csg": "0.2.4",
-    "@jscad/io": "0.2.0",
+    "@jscad/csg": "^0.3.6",
+    "@jscad/io": "^0.3.7",
     "@jscad/openscad-openjscad-translator": "0.0.10",
-    "@jscad/scad-api": "0.3.4",
+    "@jscad/scad-api": "^0.3.6",
     "@jscad/vrml-serializer": "devrt/jscad-vrml-serializer",
     "astring": "^1.0.2",
     "brace": "0.10.0",
     "esprima": "^3.1.3",
     "estraverse": "^4.2.0",
-    "most-gestures": "^0.2.0",
+    "most-gestures": "^0.3.0",
     "webworkify": "^1.4.0"
   },
   "devDependencies": {
-    "ava": "^0.19.1",
+    "ava": "^0.23.0",
     "babel-cli": "^6.6.5",
     "babel-core": "^6.2.1",
     "babel-preset-es2015": "^6.1.18",
@@ -44289,6 +44289,10 @@ var _require = require('@jscad/csg'),
 
 var _require2 = require('../utils/misc'),
     toArray = _require2.toArray;
+
+var _require3 = require('./utils'),
+    isCSG = _require3.isCSG,
+    isCAG = _require3.isCAG;
 
 // FIXME: is there not too much overlap with convertToBlob ?
 /**
@@ -44334,16 +44338,18 @@ function convertToSolid2(objects, params) {
   var foundCSG = false;
   var foundCAG = false;
   for (var i = 0; i < objects.length; i++) {
-    if (objects[i] instanceof CSG) {
+    if (isCSG(objects[i])) {
       foundCSG = true;
     }
-    if (objects[i] instanceof CAG) {
+    if (isCAG(objects[i])) {
       foundCAG = true;
     }
   }
+
   // convert based on the given format
   foundCSG = foundCSG && convertCSG;
   foundCAG = foundCAG && convertCAG;
+
   if (foundCSG && foundCAG) {
     foundCAG = false;
   } // use 3D conversion
@@ -44369,7 +44375,7 @@ module.exports = {
   convertToSolid2: convertToSolid2
 };
 
-},{"../utils/misc":238,"@jscad/csg":3}],215:[function(require,module,exports){
+},{"../utils/misc":239,"./utils":222,"@jscad/csg":3}],215:[function(require,module,exports){
 'use strict';
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
@@ -44508,17 +44514,16 @@ module.exports = createJscadFunction;
 // jscad-worker.js
 //
 // == OpenJSCAD.org, Copyright (c) 2013-2016, Licensed under MIT License
-
-var _require = require('@jscad/csg'),
-    CAG = _require.CAG,
-    CSG = _require.CSG;
-
 var oscad = require('@jscad/scad-api');
 
 var createJscadFunction = require('./jscad-function');
 
-var _require2 = require('../utils/misc'),
-    toArray = _require2.toArray;
+var _require = require('../utils/misc'),
+    toArray = _require.toArray;
+
+var _require2 = require('./utils'),
+    isCSG = _require2.isCSG,
+    isCAG = _require2.isCAG;
 
 /**
  * Create an worker (thread) for processing the JSCAD script into CSG/CAG objects
@@ -44527,7 +44532,6 @@ var _require2 = require('../utils/misc'),
 
 module.exports = function (self) {
   self.onmessage = function (e) {
-    var r = { cmd: 'error', txt: 'try again' };
     if (e.data instanceof Object) {
       var data = e.data;
       if (data.cmd === 'render') {
@@ -44544,7 +44548,7 @@ module.exports = function (self) {
 
         var objects = func(parameters, include, globals);
         objects = toArray(objects).map(function (object) {
-          if (object instanceof CAG || object instanceof CSG) {
+          if (isCSG(object) || isCAG(object)) {
             return object.toCompactBinary();
           }
         });
@@ -44558,7 +44562,7 @@ module.exports = function (self) {
   };
 };
 
-},{"../utils/misc":238,"./jscad-function":217,"@jscad/csg":3,"@jscad/scad-api":47}],219:[function(require,module,exports){
+},{"../utils/misc":239,"./jscad-function":217,"./utils":222,"@jscad/scad-api":47}],219:[function(require,module,exports){
 'use strict';
 
 var WebWorkify = require('webworkify');
@@ -44698,7 +44702,7 @@ module.exports = {
   rebuildSolidInWorker: rebuildSolidInWorker
 };
 
-},{"../utils/misc":238,"./jscad-function":217,"./jscad-worker.js":218,"./replaceIncludes":220,"./resolveIncludes":221,"@jscad/csg":3,"@jscad/scad-api":47,"webworkify":209}],220:[function(require,module,exports){
+},{"../utils/misc":239,"./jscad-function":217,"./jscad-worker.js":218,"./replaceIncludes":220,"./resolveIncludes":221,"@jscad/csg":3,"@jscad/scad-api":47,"webworkify":209}],220:[function(require,module,exports){
 'use strict';
 
 var esprima = require('esprima');
@@ -44869,6 +44873,43 @@ module.exports = {
 },{}],222:[function(require,module,exports){
 'use strict';
 
+function isCAG(object) {
+  // objects[i] instanceof CAG => NOT RELIABLE
+  // 'instanceof' causes huge issues when using objects from
+  // two different versions of CSG.js as they are not reckonized as one and the same
+  // so DO NOT use instanceof to detect matching types for CSG/CAG
+  if (!('sides' in object)) {
+    return false;
+  }
+  if (!object.sides.length) {
+    return false;
+  }
+
+  return true;
+}
+
+function isCSG(object) {
+  // objects[i] instanceof CSG => NOT RELIABLE
+  // 'instanceof' causes huge issues when using objects from
+  // two different versions of CSG.js as they are not reckonized as one and the same
+  // so DO NOT use instanceof to detect matching types for CSG/CAG
+  if (!('polygons' in object)) {
+    return false;
+  }
+  if (!object.polygons.length) {
+    return false;
+  }
+  return true;
+}
+
+module.exports = {
+  isCSG: isCSG,
+  isCAG: isCAG
+};
+
+},{}],223:[function(require,module,exports){
+'use strict';
+
 var _require = require('@jscad/io'),
     makeBlob = _require.makeBlob;
 
@@ -44886,7 +44927,7 @@ module.exports = {
   convertToBlob: convertToBlob
 };
 
-},{"@jscad/io":7}],223:[function(require,module,exports){
+},{"@jscad/io":7}],224:[function(require,module,exports){
 'use strict';
 
 var _require = require('@jscad/csg'),
@@ -44898,8 +44939,8 @@ var _require = require('@jscad/csg'),
 
 var formats = {
   stl: {
-    displayName: 'STL (ASCII)',
-    description: 'STereoLithography, ASCII',
+    displayName: 'STL (Binary)',
+    description: 'STereoLithography, Binary',
     extension: 'stl',
     mimetype: 'application/sla',
     convertCSG: true,
@@ -45018,7 +45059,7 @@ module.exports = {
   supportedFormatsForObjects: supportedFormatsForObjects
 };
 
-},{"@jscad/csg":3}],224:[function(require,module,exports){
+},{"@jscad/csg":3}],225:[function(require,module,exports){
 'use strict';
 
 var generateOutputFileBlobUrl = require('../io/generateOutputFileBlobUrl');
@@ -45036,7 +45077,7 @@ module.exports = {
   generateOutputFile: generateOutputFile
 };
 
-},{"../io/generateOutputFileBlobUrl":225,"../io/generateOutputFileFileSystem":226}],225:[function(require,module,exports){
+},{"../io/generateOutputFileBlobUrl":226,"../io/generateOutputFileFileSystem":227}],226:[function(require,module,exports){
 'use strict';
 
 var _require = require('./utils'),
@@ -45064,7 +45105,7 @@ module.exports = function generateOutputFileBlobUrl(extension, blob, callback) {
   }
 };
 
-},{"./utils":228}],226:[function(require,module,exports){
+},{"./utils":229}],227:[function(require,module,exports){
 'use strict';
 
 var FileSystemApiErrorHandler = require('./utils');
@@ -45103,7 +45144,7 @@ module.exports = function generateOutputFileFileSystem(extension, blob, callback
   });
 };
 
-},{"./utils":228}],227:[function(require,module,exports){
+},{"./utils":229}],228:[function(require,module,exports){
 'use strict';
 
 var _require = require('./formats'),
@@ -45193,7 +45234,7 @@ module.exports = {
   prepareOutput: prepareOutput
 };
 
-},{"../core/convertToSolid":214,"./formats":223,"@jscad/io":7,"@jscad/vrml-serializer":96}],228:[function(require,module,exports){
+},{"../core/convertToSolid":214,"./formats":224,"@jscad/io":7,"@jscad/vrml-serializer":96}],229:[function(require,module,exports){
 'use strict';
 
 function isSafari() {
@@ -45241,7 +45282,7 @@ module.exports = {
   FileSystemApiErrorHandler: FileSystemApiErrorHandler
 };
 
-},{}],229:[function(require,module,exports){
+},{}],230:[function(require,module,exports){
 'use strict';
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
@@ -45272,7 +45313,7 @@ module.exports = {
   status: status
 };
 
-},{}],230:[function(require,module,exports){
+},{}],231:[function(require,module,exports){
 'use strict';
 
 var log = require('./log');
@@ -46066,14 +46107,14 @@ Processor.prototype = {
 
 module.exports = Processor;
 
-},{"../core/convertToSolid":214,"../core/getParamDefinitions":215,"../core/getParamValues":216,"../core/rebuildSolid":219,"../io/convertToBlob":222,"../io/formats":223,"../io/generateOutputFile":224,"../io/prepareOutput":227,"../io/utils":228,"../ui/viewer/jscad-viewer":236,"./log":229}],231:[function(require,module,exports){
+},{"../core/convertToSolid":214,"../core/getParamDefinitions":215,"../core/getParamValues":216,"../core/rebuildSolid":219,"../io/convertToBlob":223,"../io/formats":224,"../io/generateOutputFile":225,"../io/prepareOutput":228,"../io/utils":229,"../ui/viewer/jscad-viewer":237,"./log":230}],232:[function(require,module,exports){
 'use strict';
 
 var json = require('../../package.json');
 var version = json.version; // TODO/ add version date ?
 module.exports = { version: version };
 
-},{"../../package.json":213}],232:[function(require,module,exports){
+},{"../../package.json":213}],233:[function(require,module,exports){
 'use strict';
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
@@ -46118,7 +46159,7 @@ function AlertUserOfUncaughtExceptions() {
 
 module.exports = AlertUserOfUncaughtExceptions;
 
-},{}],233:[function(require,module,exports){
+},{}],234:[function(require,module,exports){
 'use strict';
 
 // == OpenJSCAD.org, Copyright (c) 2017, Licensed under MIT License
@@ -46180,7 +46221,7 @@ document.addEventListener('DOMContentLoaded', function (event) {
   init();
 });
 
-},{"../jscad/processor":230,"../jscad/version":231,"./errorDispatcher":232}],234:[function(require,module,exports){
+},{"../jscad/processor":231,"../jscad/version":232,"./errorDispatcher":233}],235:[function(require,module,exports){
 'use strict';
 
 /**
@@ -46240,7 +46281,7 @@ module.exports = {
   parseColor: parseColor
 };
 
-},{}],235:[function(require,module,exports){
+},{}],236:[function(require,module,exports){
 'use strict';
 
 var _require = require('most-gestures'),
@@ -46726,7 +46767,7 @@ LightGLEngine.prototype = {
 
 module.exports = LightGLEngine;
 
-},{"./jscad-viewer-helpers":234,"./lightgl":237,"most-gestures":115}],236:[function(require,module,exports){
+},{"./jscad-viewer-helpers":235,"./lightgl":238,"most-gestures":115}],237:[function(require,module,exports){
 'use strict';
 
 var LightGLEngine = require('./jscad-viewer-lightgl');
@@ -46940,7 +46981,7 @@ Viewer.prototype = {
 
 module.exports = Viewer;
 
-},{"./jscad-viewer-helpers":234,"./jscad-viewer-lightgl":235}],237:[function(require,module,exports){
+},{"./jscad-viewer-helpers":235,"./jscad-viewer-lightgl":236}],238:[function(require,module,exports){
 'use strict';
 
 /*
@@ -49168,7 +49209,7 @@ var GL = function () {
 
 module.exports = GL;
 
-},{}],238:[function(require,module,exports){
+},{}],239:[function(require,module,exports){
 "use strict";
 
 /* converts input data to array if it is not already an array */
@@ -49180,4 +49221,4 @@ function toArray(data) {
 
 module.exports = { toArray: toArray };
 
-},{}]},{},[233]);
+},{}]},{},[234]);

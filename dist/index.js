@@ -90438,7 +90438,7 @@ exports.XMLReader = XMLReader;
 },{}],258:[function(require,module,exports){
 module.exports={
   "name": "@jscad/openjscad",
-  "version": "1.0.3",
+  "version": "1.2.0",
   "description": "",
   "repository": "https://github.com/Spiritdude/OpenJSCAD.org",
   "main": "src/module.js",
@@ -90446,7 +90446,7 @@ module.exports={
     "openjscad": "src/cli/cli.js"
   },
   "scripts": {
-    "test": "ava './src/**/*.test.js' --verbose --timeout 10000",
+    "test": "ava './src/cli/*.test.js' --verbose --timeout 10000",
     "build-web": "browserify src/ui/index.js -o dist/index.js -t [babelify browserify minifyify]",
     "build-min": "browserify src/ui/min.js -o dist/min.js -t [babelify browserify minifyify]",
     "build-opt": "browserify src/ui/opt.js -o dist/opt.js -t [babelify browserify minifyify]",
@@ -90455,9 +90455,9 @@ module.exports={
     "preversion": "npm test",
     "version": "npm run build-all && git add -A ",
     "postversion": "git push origin master && git push origin master --tags",
-    "release-patch": "git checkout master; npm version patch",
-    "release-minor": "git checkout master; npm version minor",
-    "release-major": "git checkout master; npm version major",
+    "release-patch": "git checkout master && git pull origin master && npm version patch",
+    "release-minor": "git checkout master && git pull origin master && npm version minor",
+    "release-major": "git checkout master && git pull origin master && npm version major",
     "postinstall": "node -e \"console.log('\\u001b[35m\\u001b[1mLove OpenJSCAD? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/openjscad/donate\\u001b[0m')\""
   },
   "contributors": [
@@ -90476,20 +90476,20 @@ module.exports={
   ],
   "license": "MIT",
   "dependencies": {
-    "@jscad/csg": "0.2.4",
-    "@jscad/io": "0.2.0",
+    "@jscad/csg": "^0.3.6",
+    "@jscad/io": "^0.3.7",
     "@jscad/openscad-openjscad-translator": "0.0.10",
-    "@jscad/scad-api": "0.3.4",
+    "@jscad/scad-api": "^0.3.6",
     "@jscad/vrml-serializer": "devrt/jscad-vrml-serializer",
     "astring": "^1.0.2",
     "brace": "0.10.0",
     "esprima": "^3.1.3",
     "estraverse": "^4.2.0",
-    "most-gestures": "^0.2.0",
+    "most-gestures": "^0.3.0",
     "webworkify": "^1.4.0"
   },
   "devDependencies": {
-    "ava": "^0.19.1",
+    "ava": "^0.23.0",
     "babel-cli": "^6.6.5",
     "babel-core": "^6.2.1",
     "babel-preset-es2015": "^6.1.18",
@@ -90523,6 +90523,10 @@ var _require = require('@jscad/csg'),
 
 var _require2 = require('../utils/misc'),
     toArray = _require2.toArray;
+
+var _require3 = require('./utils'),
+    isCSG = _require3.isCSG,
+    isCAG = _require3.isCAG;
 
 // FIXME: is there not too much overlap with convertToBlob ?
 /**
@@ -90568,16 +90572,18 @@ function convertToSolid2(objects, params) {
   var foundCSG = false;
   var foundCAG = false;
   for (var i = 0; i < objects.length; i++) {
-    if (objects[i] instanceof CSG) {
+    if (isCSG(objects[i])) {
       foundCSG = true;
     }
-    if (objects[i] instanceof CAG) {
+    if (isCAG(objects[i])) {
       foundCAG = true;
     }
   }
+
   // convert based on the given format
   foundCSG = foundCSG && convertCSG;
   foundCAG = foundCAG && convertCAG;
+
   if (foundCSG && foundCAG) {
     foundCAG = false;
   } // use 3D conversion
@@ -90603,7 +90609,7 @@ module.exports = {
   convertToSolid2: convertToSolid2
 };
 
-},{"../utils/misc":294,"@jscad/csg":3}],260:[function(require,module,exports){
+},{"../utils/misc":295,"./utils":267,"@jscad/csg":3}],260:[function(require,module,exports){
 'use strict';
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
@@ -90742,17 +90748,16 @@ module.exports = createJscadFunction;
 // jscad-worker.js
 //
 // == OpenJSCAD.org, Copyright (c) 2013-2016, Licensed under MIT License
-
-var _require = require('@jscad/csg'),
-    CAG = _require.CAG,
-    CSG = _require.CSG;
-
 var oscad = require('@jscad/scad-api');
 
 var createJscadFunction = require('./jscad-function');
 
-var _require2 = require('../utils/misc'),
-    toArray = _require2.toArray;
+var _require = require('../utils/misc'),
+    toArray = _require.toArray;
+
+var _require2 = require('./utils'),
+    isCSG = _require2.isCSG,
+    isCAG = _require2.isCAG;
 
 /**
  * Create an worker (thread) for processing the JSCAD script into CSG/CAG objects
@@ -90761,7 +90766,6 @@ var _require2 = require('../utils/misc'),
 
 module.exports = function (self) {
   self.onmessage = function (e) {
-    var r = { cmd: 'error', txt: 'try again' };
     if (e.data instanceof Object) {
       var data = e.data;
       if (data.cmd === 'render') {
@@ -90778,7 +90782,7 @@ module.exports = function (self) {
 
         var objects = func(parameters, include, globals);
         objects = toArray(objects).map(function (object) {
-          if (object instanceof CAG || object instanceof CSG) {
+          if (isCSG(object) || isCAG(object)) {
             return object.toCompactBinary();
           }
         });
@@ -90792,7 +90796,7 @@ module.exports = function (self) {
   };
 };
 
-},{"../utils/misc":294,"./jscad-function":262,"@jscad/csg":3,"@jscad/scad-api":71}],264:[function(require,module,exports){
+},{"../utils/misc":295,"./jscad-function":262,"./utils":267,"@jscad/scad-api":71}],264:[function(require,module,exports){
 'use strict';
 
 var WebWorkify = require('webworkify');
@@ -90932,7 +90936,7 @@ module.exports = {
   rebuildSolidInWorker: rebuildSolidInWorker
 };
 
-},{"../utils/misc":294,"./jscad-function":262,"./jscad-worker.js":263,"./replaceIncludes":265,"./resolveIncludes":266,"@jscad/csg":3,"@jscad/scad-api":71,"webworkify":254}],265:[function(require,module,exports){
+},{"../utils/misc":295,"./jscad-function":262,"./jscad-worker.js":263,"./replaceIncludes":265,"./resolveIncludes":266,"@jscad/csg":3,"@jscad/scad-api":71,"webworkify":254}],265:[function(require,module,exports){
 'use strict';
 
 var esprima = require('esprima');
@@ -91103,6 +91107,43 @@ module.exports = {
 },{}],267:[function(require,module,exports){
 'use strict';
 
+function isCAG(object) {
+  // objects[i] instanceof CAG => NOT RELIABLE
+  // 'instanceof' causes huge issues when using objects from
+  // two different versions of CSG.js as they are not reckonized as one and the same
+  // so DO NOT use instanceof to detect matching types for CSG/CAG
+  if (!('sides' in object)) {
+    return false;
+  }
+  if (!object.sides.length) {
+    return false;
+  }
+
+  return true;
+}
+
+function isCSG(object) {
+  // objects[i] instanceof CSG => NOT RELIABLE
+  // 'instanceof' causes huge issues when using objects from
+  // two different versions of CSG.js as they are not reckonized as one and the same
+  // so DO NOT use instanceof to detect matching types for CSG/CAG
+  if (!('polygons' in object)) {
+    return false;
+  }
+  if (!object.polygons.length) {
+    return false;
+  }
+  return true;
+}
+
+module.exports = {
+  isCSG: isCSG,
+  isCAG: isCAG
+};
+
+},{}],268:[function(require,module,exports){
+'use strict';
+
 // conversion worker.js
 //
 // == OpenJSCAD.org, Copyright (c) 2013-2016, Licensed under MIT License
@@ -91197,7 +91238,7 @@ module.exports = function (self) {
   };
 };
 
-},{"@jscad/io":7,"@jscad/openscad-openjscad-translator":68}],268:[function(require,module,exports){
+},{"@jscad/io":7,"@jscad/openscad-openjscad-translator":68}],269:[function(require,module,exports){
 'use strict';
 
 var _require = require('@jscad/io'),
@@ -91217,7 +91258,7 @@ module.exports = {
   convertToBlob: convertToBlob
 };
 
-},{"@jscad/io":7}],269:[function(require,module,exports){
+},{"@jscad/io":7}],270:[function(require,module,exports){
 'use strict';
 
 // ui-worker.js
@@ -91252,7 +91293,7 @@ function createConversionWorker(onDone) {
 
 module.exports = { createConversionWorker: createConversionWorker };
 
-},{"./conversionWorker.js":267,"webworkify":254}],270:[function(require,module,exports){
+},{"./conversionWorker.js":268,"webworkify":254}],271:[function(require,module,exports){
 'use strict';
 
 var _require = require('@jscad/csg'),
@@ -91264,8 +91305,8 @@ var _require = require('@jscad/csg'),
 
 var formats = {
   stl: {
-    displayName: 'STL (ASCII)',
-    description: 'STereoLithography, ASCII',
+    displayName: 'STL (Binary)',
+    description: 'STereoLithography, Binary',
     extension: 'stl',
     mimetype: 'application/sla',
     convertCSG: true,
@@ -91384,7 +91425,7 @@ module.exports = {
   supportedFormatsForObjects: supportedFormatsForObjects
 };
 
-},{"@jscad/csg":3}],271:[function(require,module,exports){
+},{"@jscad/csg":3}],272:[function(require,module,exports){
 'use strict';
 
 var generateOutputFileBlobUrl = require('../io/generateOutputFileBlobUrl');
@@ -91402,7 +91443,7 @@ module.exports = {
   generateOutputFile: generateOutputFile
 };
 
-},{"../io/generateOutputFileBlobUrl":272,"../io/generateOutputFileFileSystem":273}],272:[function(require,module,exports){
+},{"../io/generateOutputFileBlobUrl":273,"../io/generateOutputFileFileSystem":274}],273:[function(require,module,exports){
 'use strict';
 
 var _require = require('./utils'),
@@ -91430,7 +91471,7 @@ module.exports = function generateOutputFileBlobUrl(extension, blob, callback) {
   }
 };
 
-},{"./utils":275}],273:[function(require,module,exports){
+},{"./utils":276}],274:[function(require,module,exports){
 'use strict';
 
 var FileSystemApiErrorHandler = require('./utils');
@@ -91469,7 +91510,7 @@ module.exports = function generateOutputFileFileSystem(extension, blob, callback
   });
 };
 
-},{"./utils":275}],274:[function(require,module,exports){
+},{"./utils":276}],275:[function(require,module,exports){
 'use strict';
 
 var _require = require('./formats'),
@@ -91559,7 +91600,7 @@ module.exports = {
   prepareOutput: prepareOutput
 };
 
-},{"../core/convertToSolid":259,"./formats":270,"@jscad/io":7,"@jscad/vrml-serializer":120}],275:[function(require,module,exports){
+},{"../core/convertToSolid":259,"./formats":271,"@jscad/io":7,"@jscad/vrml-serializer":120}],276:[function(require,module,exports){
 'use strict';
 
 function isSafari() {
@@ -91607,7 +91648,7 @@ module.exports = {
   FileSystemApiErrorHandler: FileSystemApiErrorHandler
 };
 
-},{}],276:[function(require,module,exports){
+},{}],277:[function(require,module,exports){
 'use strict';
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
@@ -91638,7 +91679,7 @@ module.exports = {
   status: status
 };
 
-},{}],277:[function(require,module,exports){
+},{}],278:[function(require,module,exports){
 'use strict';
 
 var log = require('./log');
@@ -92432,14 +92473,14 @@ Processor.prototype = {
 
 module.exports = Processor;
 
-},{"../core/convertToSolid":259,"../core/getParamDefinitions":260,"../core/getParamValues":261,"../core/rebuildSolid":264,"../io/convertToBlob":268,"../io/formats":270,"../io/generateOutputFile":271,"../io/prepareOutput":274,"../io/utils":275,"../ui/viewer/jscad-viewer":292,"./log":276}],278:[function(require,module,exports){
+},{"../core/convertToSolid":259,"../core/getParamDefinitions":260,"../core/getParamValues":261,"../core/rebuildSolid":264,"../io/convertToBlob":269,"../io/formats":271,"../io/generateOutputFile":272,"../io/prepareOutput":275,"../io/utils":276,"../ui/viewer/jscad-viewer":293,"./log":277}],279:[function(require,module,exports){
 'use strict';
 
 var json = require('../../package.json');
 var version = json.version; // TODO/ add version date ?
 module.exports = { version: version };
 
-},{"../../package.json":258}],279:[function(require,module,exports){
+},{"../../package.json":258}],280:[function(require,module,exports){
 'use strict';
 
 // ui-cookies.js
@@ -92490,7 +92531,7 @@ module.exports = {
   deleteCookie: deleteCookie
 };
 
-},{}],280:[function(require,module,exports){
+},{}],281:[function(require,module,exports){
 'use strict';
 
 function isChrome() {
@@ -92510,7 +92551,7 @@ module.exports = {
   detectBrowser: detectBrowser
 };
 
-},{}],281:[function(require,module,exports){
+},{}],282:[function(require,module,exports){
 'use strict';
 
 /**
@@ -92584,7 +92625,7 @@ module.exports = {
   hasDragDropSupport: hasDragDropSupport
 };
 
-},{}],282:[function(require,module,exports){
+},{}],283:[function(require,module,exports){
 'use strict';
 
 // ui-drag-drop.js
@@ -92897,7 +92938,7 @@ module.exports = {
   setupDragDrop: setupDragDrop
 };
 
-},{"../../io/createConversionWorker":269,"../../jscad/version":278,"../editor":284,"./helpers":281,"./walkFileTree":283}],283:[function(require,module,exports){
+},{"../../io/createConversionWorker":270,"../../jscad/version":279,"../editor":285,"./helpers":282,"./walkFileTree":284}],284:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -92906,7 +92947,6 @@ Object.defineProperty(exports, "__esModule", {
 exports.isSupportedFormat = isSupportedFormat;
 exports.pseudoArraytoArray = pseudoArraytoArray;
 exports.walkFileTree = walkFileTree;
-exports.afterFilesRead = afterFilesRead;
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
@@ -92928,13 +92968,23 @@ var readFileAsync = function readFileAsync(file, fileMeta) {
   var reader = new FileReader();
 
   return new Promise(function (resolve, reject) {
-    isBinaryFile ? reader.readAsBinaryString(file, 'UTF-8') : reader.readAsText(file, 'UTF-8');
-
+    reader.readAsArrayBuffer(file);
     // remove rootfolder since all files are within it
     var fullpath = fileMeta && fileMeta.fullPath ? fileMeta.fullPath.split('/').slice(2).join('/') : '';
 
+    // convert binary to text
+    function convert(buffer) {
+      var binary = '';
+      var bytes = new Uint8Array(buffer);
+      var length = bytes.byteLength;
+      for (var i = 0; i < length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return binary;
+    }
+
     reader.onloadend = function (event) {
-      event.target.readyState === FileReader.DONE ? resolve({ name: file.name, fullpath: fullpath, source: event.target.result }) : reject('Failed to load file');
+      event.target.readyState === FileReader.DONE ? resolve({ name: file.name, fullpath: fullpath, source: convert(event.target.result) }) : reject(new Error('Failed to load file'));
     };
   });
 };
@@ -93008,26 +93058,7 @@ function walkFileTree(items) {
   return processItems(items);
 }
 
-function afterFilesRead(_ref2, files) {
-  var memFs = _ref2.memFs,
-      memFsCount = _ref2.memFsCount,
-      memFsTotal = _ref2.memFsTotal,
-      memFsChanged = _ref2.memFsChanged;
-
-  memFsCount = files.length;
-  memFsTotal = files.length;
-
-  // FIXME : THIRD time the SAME data is cached
-  // saveScript(memFs, file.name, file.source)
-  var mainFile = findMainFile({ memFs: memFs, memFsTotal: memFsTotal }, files);
-
-  if (changedFiles(memFs, files).length > 0) {
-    if (!mainFile) throw new Error('No main.jscad found');
-    setCurrentFile(mainFile); // ARGH , cannot do this here
-  }
-}
-
-},{"../../io/formats":270,"./helpers":281}],284:[function(require,module,exports){
+},{"../../io/formats":271,"./helpers":282}],285:[function(require,module,exports){
 'use strict';
 
 // ui-editor.js
@@ -93093,22 +93124,30 @@ function setUpEditor(divname, gProcessor) {
   // gEditor.setTheme("ace/theme/vibrant_ink")
   // gEditor.setTheme("ace/theme/xcode")
 
+  function runExec(editor) {
+    var src = editor.getValue();
+    if (src.match(/^\/\/\!OpenSCAD/i)) {
+      editor.getSession().setMode('ace/mode/scad');
+      // FIXME test for the global function first
+      src = openscadOpenJscadParser.parse(src);
+    } else {
+      editor.getSession().setMode('ace/mode/javascript');
+    }
+    if (gProcessor !== null) {
+      gProcessor.setJsCad(src);
+    }
+  }
   // enable special keystrokes
   gEditor.commands.addCommand({
     name: 'setJSCAD',
     bindKey: { win: 'F5|Shift-Return', mac: 'F5|Shift-Return' },
-    exec: function exec(editor) {
-      var src = editor.getValue();
-      if (src.match(/^\/\/\!OpenSCAD/i)) {
-        editor.getSession().setMode('ace/mode/scad');
-        // FIXME test for the global function first
-        src = openscadOpenJscadParser.parse(src);
-      } else {
-        editor.getSession().setMode('ace/mode/javascript');
-      }
-      if (gProcessor !== null) {
-        gProcessor.setJsCad(src);
-      }
+    exec: runExec
+  });
+  document.body.addEventListener('keydown', function (evt) {
+    if (evt.key === 'F5') {
+      evt.preventDefault();
+      //console.log('no accidental reloading!')
+      runExec(gEditor);
     }
   });
   gEditor.commands.addCommand({
@@ -93156,6 +93195,15 @@ function setUpEditor(divname, gProcessor) {
       }, 0);
     }
   });
+  gEditor.commands.addCommand({
+    name: 'clearStorage',
+    bindKey: { win: 'Ctrl-Shift-\\', mac: 'Command-Shift-\\' },
+    exec: function exec(editor) {
+      var src = editor.getValue();
+      localStorage.clear();
+      gProcessor.setStatus('cleared', 'Cleared browser storage');
+    }
+  });
 
   return gEditor;
 }
@@ -93184,7 +93232,7 @@ module.exports = {
   getSourceFromEditor: getSourceFromEditor
 };
 
-},{"@jscad/openscad-openjscad-translator":68,"brace":126,"brace/mode/javascript":127,"brace/mode/scad":128,"brace/theme/chrome":129}],285:[function(require,module,exports){
+},{"@jscad/openscad-openjscad-translator":68,"brace":126,"brace/mode/javascript":127,"brace/mode/scad":128,"brace/theme/chrome":129}],286:[function(require,module,exports){
 'use strict';
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
@@ -93229,7 +93277,7 @@ function AlertUserOfUncaughtExceptions() {
 
 module.exports = AlertUserOfUncaughtExceptions;
 
-},{}],286:[function(require,module,exports){
+},{}],287:[function(require,module,exports){
 'use strict';
 
 var _require = require('../io/createConversionWorker'),
@@ -93450,7 +93498,7 @@ module.exports = {
   loadInitialExample: loadInitialExample
 };
 
-},{"../io/createConversionWorker":269,"../jscad/version":278,"./editor":284,"url":250}],287:[function(require,module,exports){
+},{"../io/createConversionWorker":270,"../jscad/version":279,"./editor":285,"url":250}],288:[function(require,module,exports){
 'use strict';
 
 // == OpenJSCAD.org, Copyright (c) 2013-2016, Licensed under MIT License
@@ -93680,7 +93728,7 @@ document.addEventListener('DOMContentLoaded', function (event) {
   init();
 });
 
-},{"../jscad/processor":277,"../jscad/version":278,"./detectBrowser":280,"./dragDrop/ui-drag-drop":282,"./editor":284,"./errorDispatcher":285,"./examples":286,"./options":288,"./urlHelpers":289}],288:[function(require,module,exports){
+},{"../jscad/processor":278,"../jscad/version":279,"./detectBrowser":281,"./dragDrop/ui-drag-drop":283,"./editor":285,"./errorDispatcher":286,"./examples":287,"./options":289,"./urlHelpers":290}],289:[function(require,module,exports){
 'use strict';
 
 var _require = require('./cookies'),
@@ -93800,7 +93848,7 @@ module.exports = {
   createOptions: createOptions
 };
 
-},{"./cookies":279}],289:[function(require,module,exports){
+},{"./cookies":280}],290:[function(require,module,exports){
 'use strict';
 
 // this is a bit of a hack; doesn't properly supports urls that start with '/'
@@ -93879,7 +93927,7 @@ module.exports = {
   getUrlParams: getUrlParams
 };
 
-},{}],290:[function(require,module,exports){
+},{}],291:[function(require,module,exports){
 'use strict';
 
 /**
@@ -93939,7 +93987,7 @@ module.exports = {
   parseColor: parseColor
 };
 
-},{}],291:[function(require,module,exports){
+},{}],292:[function(require,module,exports){
 'use strict';
 
 var _require = require('most-gestures'),
@@ -94425,7 +94473,7 @@ LightGLEngine.prototype = {
 
 module.exports = LightGLEngine;
 
-},{"./jscad-viewer-helpers":290,"./lightgl":293,"most-gestures":146}],292:[function(require,module,exports){
+},{"./jscad-viewer-helpers":291,"./lightgl":294,"most-gestures":146}],293:[function(require,module,exports){
 'use strict';
 
 var LightGLEngine = require('./jscad-viewer-lightgl');
@@ -94639,7 +94687,7 @@ Viewer.prototype = {
 
 module.exports = Viewer;
 
-},{"./jscad-viewer-helpers":290,"./jscad-viewer-lightgl":291}],293:[function(require,module,exports){
+},{"./jscad-viewer-helpers":291,"./jscad-viewer-lightgl":292}],294:[function(require,module,exports){
 'use strict';
 
 /*
@@ -96867,7 +96915,7 @@ var GL = function () {
 
 module.exports = GL;
 
-},{}],294:[function(require,module,exports){
+},{}],295:[function(require,module,exports){
 "use strict";
 
 /* converts input data to array if it is not already an array */
@@ -96879,4 +96927,4 @@ function toArray(data) {
 
 module.exports = { toArray: toArray };
 
-},{}]},{},[287]);
+},{}]},{},[288]);
